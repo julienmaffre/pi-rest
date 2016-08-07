@@ -1,7 +1,24 @@
 #!/usr/bin/python
-from flask import Flask
+from flask import Flask, jsonify
 
 app = Flask(__name__)
+
+pins = [
+    {
+        'id': 1,
+        'title': 'Orange LED',
+        'status': 0,
+    },
+    {
+        'id': 2,
+        'title': 'Blue LED',
+        'status': 1,
+    }
+]
+
+@app.route('/pins', methods=['GET'])
+def get_tasks():
+    return jsonify({'pins': pins})
 
 @app.route('/')
 def index():
