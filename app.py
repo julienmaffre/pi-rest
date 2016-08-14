@@ -1,11 +1,79 @@
-#!/usr/bin/python
-from flask import Flask
+#!/usr/bin/env python3
+import logging
+
+from enum import Enum
+from flask import Flask, jsonify, request, abort, make_response
 
 app = Flask(__name__)
+
+pins = [
+    {
+        'id': 1,
+        'title': 'Orange LED',
+        'state': 0,
+    },
+    {
+        'id': 2,
+        'title': 'Blue LED',
+        'state': 1,
+    }
+]
+
+#
+# Pi Specific functions (to be moved to another file later on)
+#
+
+class PinState(Enum):
+    off = 0
+    on = 1
+
+def pi_switch_on(pin_id):
+    app.logger.debug('Pin %d has been switched on!', pin_id)
+    # TODO: Turn hardware pin on here
+
+def pi_switch_off(pin_id):
+    app.logger.debug('Pin %d has been switched off!', pin_id)
+    # TODO: Turn hardware pin off here
+
+#
+# RESTful API functions
+#
+
+@app.route('/pins/<int:pin_id>', methods=['PUT'])
+def set_pin(pin_id):
+    pin = [pin for pin in pins if pin['id'] == pin_id]
+    if len(pin) == 0:
+        abort(404)
+
+    if isinstance(PinState(request.json.get('state')), PinState): # TODO: need to add exception handling here, i.e. PinState(2) throws a VaueError exception
+        pin[0]['state'] = request.json.get('state')
+        if pin[0]['state'] == PinState.on:
+            pi_switch_on(pin_id)
+        elif pin[0]['state'] == PinState.off:
+            pi_switch_off(pin_id)
+    else:
+        app.logger.debug('Not a valid pin state!')
+
+    return jsonify({'pin': pin[0]})
+
+@app.route('/pins/<int:pin_id>', methods=['GET'])
+def get_pin(pin_id):
+    pin = [pin for pin in pins if pin['id'] == pin_id]
+    if len(pin) == 0:
+        abort(404)
+    return jsonify({'pin': pin[0]})
+
+@app.route('/pins', methods=['GET'])
+def get_pins():
+    return jsonify({'pins': pins})
 
 @app.route('/')
 def index():
     return "Hello, World!"
 
+@app.errorhandler(404)
+def not_found(error):
+    return make_response(jsonify({'error': 'Not found'}), 404)
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0')
