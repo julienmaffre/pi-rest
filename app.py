@@ -45,16 +45,16 @@ def set_pin(pin_id):
     if len(pin) == 0:
         abort(404)
 
-    if isinstance(PinState(request.json.get('state')), PinState): # TODO: need to add exception handling here, i.e. PinState(2) throws a VaueError exception
-        pin[0]['state'] = request.json.get('state')
-        if pin[0]['state'] == PinState.on:
-            pi_switch_on(pin_id)
-        elif pin[0]['state'] == PinState.off:
-            pi_switch_off(pin_id)
-    else:
-        app.logger.debug('Not a valid pin state!')
-
-    return jsonify({'pin': pin[0]})
+    try:
+        if isinstance(PinState(request.json.get('state')), PinState):
+            pin[0]['state'] = request.json.get('state')
+            if pin[0]['state'] == PinState.on:
+                pi_switch_on(pin_id)
+            elif pin[0]['state'] == PinState.off:
+                pi_switch_off(pin_id)
+            return jsonify({'pin': pin[0]})
+    except:
+        abort(400);
 
 @app.route('/pins/<int:pin_id>', methods=['GET'])
 def get_pin(pin_id):
@@ -74,6 +74,10 @@ def index():
 @app.errorhandler(404)
 def not_found(error):
     return make_response(jsonify({'error': 'Not found'}), 404)
+
+@app.errorhandler(400)
+def bad_request(error):
+    return make_response(jsonify({'error': 'Bad Request'}), 400)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
