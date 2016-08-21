@@ -23,9 +23,10 @@ pins = [
 # Pi Specific functions (to be moved to another file later on)
 #
 
-class PinState(Enum):
-    off = 0
-    on = 1
+# GPIO Pin states
+PIN_HIGH_STATE = 1
+PIN_LOW_STATE = 0
+VALID_PIN_STATE = [PIN_HIGH_STATE, PIN_LOW_STATE]
 
 def pi_switch_on(pin_id):
     app.logger.debug('Pin %d has been switched on!', pin_id)
@@ -39,19 +40,22 @@ def pi_switch_off(pin_id):
 # RESTful API functions
 #
 
-@app.route('/pins/<int:pin_id>', methods=['PUT'])
+@app.route('/pins/<int:pin_id>', methods=['POST'])
 def set_pin(pin_id):
     pin = [pin for pin in pins if pin['id'] == pin_id]
     if len(pin) == 0:
         abort(404)
 
     try:
-        if isinstance(PinState(request.json.get('state')), PinState):
+        if request.json.get('state') in VALID_PIN_STATE:
+            app.logger.debug(request.json.get('state'))
             pin[0]['state'] = request.json.get('state')
-            if pin[0]['state'] == PinState.on:
+            if pin[0]['state'] == PIN_HIGH_STATE:
                 pi_switch_on(pin_id)
-            elif pin[0]['state'] == PinState.off:
+            elif pin[0]['state'] == PIN_LOW_STATE:
                 pi_switch_off(pin_id)
+            else:
+                app.logger.debug(pin[0]['state'])
             return jsonify({'pin': pin[0]})
     except:
         abort(400);
