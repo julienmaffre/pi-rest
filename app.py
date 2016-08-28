@@ -25,8 +25,8 @@ pins = [
 #
 
 # GPIO Pin states
-PIN_HIGH_STATE = 1
 PIN_TEST = 7
+PIN_HIGH_STATE = 1
 PIN_LOW_STATE = 0
 VALID_PIN_STATE = [PIN_HIGH_STATE, PIN_LOW_STATE]
 
@@ -86,6 +86,19 @@ def get_pin(pin_id):
     if len(pin) == 0:
         abort(404)
     return jsonify({'pin': pin[0]})
+
+@app.route('/pins/save', methods=['GET'])
+def save_pins():
+    with open('pins.json','w') as f:
+        json.dump(pins, f)
+    return jsonify({'pins': pins})
+
+@app.route('/pins/load', methods=['POST'])
+def load_pins():
+    global pins
+    with open('pins.json', 'r') as f:
+        pins = json.load(f)
+    return jsonify({'pins': pins})
 
 @app.route('/pins', methods=['GET'])
 def get_pins():
