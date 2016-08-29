@@ -2,11 +2,17 @@
 import logging
 import json
 import RPi.GPIO as GPIO
+import os.path
 
 from enum import Enum
+from termcolor import colored
 from flask import Flask, jsonify, request, abort, make_response
 
 app = Flask(__name__)
+
+# Physical GPIOs we want to use
+GPIO_PIN_1 = 37
+GPIO_PIN_2 = 35
 
 # Default pins value
 pins = [
@@ -14,18 +20,18 @@ pins = [
         'id': 1,
         'title': 'Orange LED',
         'state': 0,
-        'pi_map': 37,
+        'pi_map': GPIO_PIN_1,
     },
     {
         'id': 2,
         'title': 'Blue LED',
         'state': 0,
-        'pi_map': 35,
+        'pi_map': GPIO_PIN_2,
     }
 ]
 
 #
-# Pi Specific functions (to be moved to another file later on)
+#   Pi Specific functions (to be moved to another file later on)
 #
 
 # GPIO Pin states
@@ -34,12 +40,39 @@ PIN_LOW_STATE = GPIO.LOW
 VALID_PIN_STATE = [PIN_HIGH_STATE, PIN_LOW_STATE]
 
 def pi_switch_on(pi_gpio_id):
-    app.logger.debug('Pin %d has been switched on!', pi_gpio_id)
+    app.logger.debug(colored('Pin %d has been switched on!', 'green'), pi_gpio_id)
     GPIO.output(pi_gpio_id, GPIO.HIGH)
 
 def pi_switch_off(pi_gpio_id):
-    app.logger.debug('Pin %d has been switched off!', pi_gpio_id)
+    app.logger.debug(colored('Pin %d has been switched off!', 'red'), pi_gpio_id)
     GPIO.output(pi_gpio_id, GPIO.LOW)
+
+#
+#   Initialisation functions for the Pi GPIOs
+#
+def pi_setup_gpio():
+    # Set Raspberry Pi GPIOs
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setwarnings(False)
+    GPIO.setup(GPIO_PIN_1, GPIO.OUT)
+    GPIO.setup(GPIO_PIN_2, GPIO.OUT)
+
+def set_pi_gpio(file):
+    # If save file exists, set pins accordingly
+    global pins
+    if os.path.isfile(file):
+        with open(file, 'r') as f:
+            print('Loading file...      ', colored(file, 'green'))
+            pins = json.load(f)
+    # TODO Make sure it conforms to the pins structure
+
+    # Now, set GPIO accordingly
+    for pin in pins:
+        GPIO.output(pin['pi_map'], pin['state'])
+        if pin['state'] == 1:
+            print(colored(pin,'green'))
+        elif pin['state'] == 0:
+            print(colored(pin,'red'))
 
 #
 # RESTful API functions
@@ -97,10 +130,7 @@ def save_pins():
 
 @app.route('/pins/load', methods=['POST'])
 def load_pins():
-    global pins
-    with open('pins.json', 'r') as f:
-        pins = json.load(f)
-    # TODO update GPIO accordingly
+    set_pi_gpio('pins.json')
     return jsonify({'pins': pins})
 
 @app.route('/pins', methods=['GET'])
@@ -119,12 +149,10 @@ def not_found(error):
 def bad_request(error):
     return make_response(jsonify({'error': 'Bad Request'}), 400)
 
+def setup_app(app):
+    pi_setup_gpio()
+    set_pi_gpio('pins.json')
+setup_app(app)
+
 if __name__ == '__main__':
-    # TODO export GPIO setting to an init function
-    # TODO set GPIO pins based on "pins.json" file if it exists
-    #       or pins global variable otherwise
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setwarnings(False)
-    GPIO.setup(37, GPIO.OUT)
-    GPIO.setup(35, GPIO.OUT)
     app.run(debug=True, host='0.0.0.0')
