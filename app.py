@@ -7,10 +7,12 @@ import os.path
 from enum import Enum
 from termcolor import colored
 from flask import Flask, jsonify, request, abort, make_response
+from flask_restful import Resource, Api, abort
 
 app = Flask(__name__)
+api = Api()
 
-# Physical GPIOs we want to use
+# Physical Pi GPIOs pins we want to use
 GPIO_PIN_1 = 37
 GPIO_PIN_2 = 35
 
@@ -18,14 +20,14 @@ GPIO_PIN_2 = 35
 pins = [
     {
         'id': 1,
-        'title': 'Orange LED',
+        'title': 'Red LED',
         'state': 0,
         'pi_map': GPIO_PIN_1,
     },
     {
         'id': 2,
-        'title': 'Blue LED',
-        'state': 0,
+        'title': 'Green LED',
+        'state': 1,
         'pi_map': GPIO_PIN_2,
     }
 ]
@@ -48,99 +50,110 @@ def pi_switch_off(pi_gpio_id):
     GPIO.output(pi_gpio_id, GPIO.LOW)
 
 #
-#   Initialisation functions for the Pi GPIOs
+#   Initialisation functions
 #
+
+# Set Raspberry Pi GPIOs
 def pi_setup_gpio():
-    # Set Raspberry Pi GPIOs
     GPIO.setmode(GPIO.BOARD)
     GPIO.setwarnings(False)
     GPIO.setup(GPIO_PIN_1, GPIO.OUT)
     GPIO.setup(GPIO_PIN_2, GPIO.OUT)
 
-def set_pi_gpio(file):
-    # If save file exists, set pins accordingly
+# Load pins from a file into global variable pins
+def load_pins(file):
     global pins
     if os.path.isfile(file):
         with open(file, 'r') as f:
-            print('Loading file...      ', colored(file, 'green'))
+            app.logger.debug('Loading file...      ' + colored(file, 'green'))
             pins = json.load(f)
-    # TODO Make sure it conforms to the pins structure
 
-    # Now, set GPIO accordingly
+# Set pins according to a set of pins
+def pi_set_gpio(set_pins):
     for pin in pins:
-        GPIO.output(pin['pi_map'], pin['state'])
-        if pin['state'] == 1:
-            print(colored(pin,'green'))
-        elif pin['state'] == 0:
-            print(colored(pin,'red'))
+        if pin['state'] == PIN_HIGH_STATE:
+            pi_switch_on(pin['pi_map'])
+        elif pin['state'] == PIN_LOW_STATE:
+            pi_switch_off(pin['pi_map'])
+
+def setup_app():
+    pi_setup_gpio()
+    load_pins('pins.json')
+    pi_set_gpio(pins)
 
 #
-# RESTful API functions
+#   RESTful API functions
 #
 
-@app.route('/pins/<int:pin_id>', methods=['PATCH'])
-def set_pin(pin_id):
+def abort_if_pin_does_not_exist(pin_id):
     pin = [pin for pin in pins if pin['id'] == pin_id]
+    app.logger.debug(pin)
     if len(pin) == 0:
-        abort(404)
-
-    if request.json.get('state') in VALID_PIN_STATE:
-        app.logger.debug(request.json.get('state'))
-        pin[0]['state'] = request.json.get('state')
-        if pin[0]['state'] == PIN_HIGH_STATE:
-            pi_switch_on(pin[0]['pi_map'])
-        elif pin[0]['state'] == PIN_LOW_STATE:
-            pi_switch_off(pin[0]['pi_map'])
-        return jsonify({'pin': pin[0]})
+        abort(404, message="Pin {} does not exist!".format(pin_id))
     else:
-        abort(400);
+        return pin
+#
+#   Pin Resource - set of methods to read and set a pin
+#
+class Pin(Resource):
+    def get(self, pin_id):
+        pin = abort_if_pin_does_not_exist(pin_id)
+        return pin
 
-@app.route('/pins/<int:pin_id>/switch_on', methods=['PATCH'])
-def switch_pin_on(pin_id):
-    pin = [pin for pin in pins if pin['id'] == pin_id]
-    if len(pin) == 0:
-        abort(404)
+    def patch(self, pin_id):
+        pin = abort_if_pin_does_not_exist(pin_id)
+        if request.json.get('state') in VALID_PIN_STATE:
+            pin[0]['state'] = request.json.get('state')
+            if pin[0]['state'] == PIN_HIGH_STATE:
+                pi_switch_on(pin[0]['pi_map'])
+            elif pin[0]['state'] == PIN_LOW_STATE:
+                pi_switch_off(pin[0]['pi_map'])
+            return jsonify({'pin': pin[0]})
+        else:
+            abort(400)
 
-    pin[0]['state'] = PIN_HIGH_STATE
-    pi_switch_on(pin[0]['pi_map'])
-    return jsonify({'pin': pin[0]})
+class PinSwitchOn(Resource):
+    def patch(self, pin_id):
+        pin = abort_if_pin_does_not_exist(pin_id)
 
-@app.route('/pins/<int:pin_id>/switch_off', methods=['PATCH'])
-def switch_pin_off(pin_id):
-    pin = [pin for pin in pins if pin['id'] == pin_id]
-    if len(pin) == 0:
-        abort(404)
+        pin[0]['state'] = PIN_HIGH_STATE
+        pi_switch_on(pin[0]['pi_map'])
+        return jsonify({'pin': pin[0]})
 
-    pin[0]['state'] = PIN_LOW_STATE
-    pi_switch_off(pin[0]['pi_map'])
-    return jsonify({'pin': pin[0]})
+class PinSwitchOff(Resource):
+    def patch(self, pin_id):
+        pin = abort_if_pin_does_not_exist(pin_id)
 
-@app.route('/pins/<int:pin_id>', methods=['GET'])
-def get_pin(pin_id):
-    pin = [pin for pin in pins if pin['id'] == pin_id]
-    if len(pin) == 0:
-        abort(404)
-    return jsonify({'pin': pin[0]})
+        pin[0]['state'] = PIN_LOW_STATE
+        pi_switch_off(pin[0]['pi_map'])
+        return jsonify({'pin': pin[0]})
 
-@app.route('/pins/save', methods=['GET'])
-def save_pins():
-    with open('pins.json','w') as f:
-        json.dump(pins, f)
-    return jsonify({'pins': pins})
+#
+#   Pins Resource - set of methods to read, save and load the entire set of pins
+#
+class Pins(Resource):
+    def get(self):
+        return jsonify({'pins': pins})
 
-@app.route('/pins/load', methods=['POST'])
-def load_pins():
-    set_pi_gpio('pins.json')
-    return jsonify({'pins': pins})
+class PinsSave(Resource):
+    def get(self):
+        with open('pins.json','w') as f:
+            json.dump(pins, f)
+        return jsonify({'pins': pins})
 
-@app.route('/pins', methods=['GET'])
-def get_pins():
-    return jsonify({'pins': pins})
+class PinsLoad(Resource):
+    def post(self):
+        load_pins('pins.json')
+        pi_set_gpio(pins)
+        return jsonify({'pins': pins})
 
-@app.route('/')
-def index():
-    return "Hello, World!"
+class Hello(Resource):
+    def get(self):
+        return {'Welcome to the pi-rest project.': 'Enjoy yourself!'}
 
+#
+#   Error handlers
+#
 @app.errorhandler(404)
 def not_found(error):
     return make_response(jsonify({'error': 'Not found'}), 404)
@@ -149,10 +162,20 @@ def not_found(error):
 def bad_request(error):
     return make_response(jsonify({'error': 'Bad Request'}), 400)
 
-def setup_app(app):
-    pi_setup_gpio()
-    set_pi_gpio('pins.json')
-setup_app(app)
+#
+#   API endpoints
+#
+api.add_resource(Hello, '/')
+api.add_resource(Pin, '/pins/<int:pin_id>')
+api.add_resource(PinSwitchOn, '/pins/<int:pin_id>/switch_on')
+api.add_resource(PinSwitchOff, '/pins/<int:pin_id>/switch_off')
+
+api.add_resource(Pins, '/pins')
+api.add_resource(PinsSave, '/pins/save')
+api.add_resource(PinsLoad, '/pins/load')
+
+app.before_first_request(setup_app)
+api.init_app(app)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
