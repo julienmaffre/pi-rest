@@ -1,0 +1,42 @@
+---
+- config:
+    - testset: "Demonstrate use of setting all pins to on and off again"
+- test:
+    - name: "Test get"
+    - url: "/pins"
+
+- test: # switch pin 1 OFF with PATCH
+    - name: "Turn pin 1 off"
+    - url: "/pins/1/switch_off"
+    - method: "PATCH"
+    - body: '{}'
+    - expected_status: [200]
+    - validators:
+        - compare: {jsonpath_mini: "pin.state", comparator: "eq", expected: 0}
+
+- test: # switch pin 2 OFF with PATCH
+    - name: "Turn pin 2 off"
+    - url: "/pins/2/switch_off"
+    - method: "PATCH"
+    - body: '{}'
+    - expected_status: [200]
+    - validators:
+        - compare: {jsonpath_mini: "pin.state", comparator: "eq", expected: 0}
+
+- test: # switch pin 1 ON with PATCH
+    - name: "Turn pin 1 on"
+    - url: "/pins/1/switch_on"
+    - method: "PATCH"
+    - body: '{}'
+    - expected_status: [200]
+    - validators:
+        - compare: {jsonpath_mini: "pin.state", comparator: "eq", expected: 1}
+
+- test: # switch pin 1 ON with PATCH
+    - name: "Turn pin 2 on"
+    - url: "/pins/2/switch_on"
+    - method: "PATCH"
+    - body: '{}'
+    - expected_status: [200]
+    - validators:
+        - compare: {jsonpath_mini: "pin.state", comparator: "eq", expected: 1}
