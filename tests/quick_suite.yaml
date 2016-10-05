@@ -1,0 +1,40 @@
+---
+- config:
+    - testset: "Demonstrate use of setting all pins to on and off"
+    - generators:
+        # Generator pins id that counts up from 1 to 2
+        - 'id_off': {type: 'number_sequence', start: 1}
+        - 'id_on': {type: 'number_sequence', start: 1}
+
+
+# - test:
+#     - name: "Test Get"
+#     - url: "/pins"
+
+- benchmark: # Turn all Pins Off
+    - generator_binds: {pin_id_off: id_off}
+    - name: "Turn all pins OFF"
+    - url: {template: "/pins/$pin_id_off/switch_off"}
+    - warmup_runs: 0
+    - method: 'PATCH'
+    - headers: {'Content-Type': 'application/json'}
+    - body: '{}'
+    - 'benchmark_runs': '2'
+    - output_format: csv
+    - metrics:
+        - total_time: total
+        - total_time: mean
+
+- benchmark: # Turn all Pins Off
+    - generator_binds: {pin_id_on: id_on}
+    - name: "Turn all pins OFF"
+    - url: {template: "/pins/$pin_id_on/switch_on"}
+    - warmup_runs: 0
+    - method: 'PATCH'
+    - headers: {'Content-Type': 'application/json'}
+    - body: '{}'
+    - 'benchmark_runs': '2'
+    - output_format: csv
+    - metrics:
+        - total_time: total
+        - total_time: mean
