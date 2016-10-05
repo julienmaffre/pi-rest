@@ -1,42 +1,40 @@
 ---
 - config:
-    - testset: "Demonstrate use of setting all pins to on and off again"
-- test:
-    - name: "Test get"
-    - url: "/pins"
+    - testset: "Demonstrate use of setting all pins to on and off"
+    - generators:
+        # Generator pins id that counts up from 1 to 2
+        - 'id_off': {type: 'number_sequence', start: 1}
+        - 'id_on': {type: 'number_sequence', start: 1}
 
-- test: # switch pin 1 OFF with PATCH
-    - name: "Turn pin 1 off"
-    - url: "/pins/1/switch_off"
-    - method: "PATCH"
-    - body: '{}'
-    - expected_status: [200]
-    - validators:
-        - compare: {jsonpath_mini: "pin.state", comparator: "eq", expected: 0}
 
-- test: # switch pin 2 OFF with PATCH
-    - name: "Turn pin 2 off"
-    - url: "/pins/2/switch_off"
-    - method: "PATCH"
-    - body: '{}'
-    - expected_status: [200]
-    - validators:
-        - compare: {jsonpath_mini: "pin.state", comparator: "eq", expected: 0}
+# - test:
+#     - name: "Test Get"
+#     - url: "/pins"
 
-- test: # switch pin 1 ON with PATCH
-    - name: "Turn pin 1 on"
-    - url: "/pins/1/switch_on"
-    - method: "PATCH"
+- benchmark: # Turn all Pins Off
+    - generator_binds: {pin_id_off: id_off}
+    - name: "Turn all pins OFF"
+    - url: {template: "/pins/$pin_id_off/switch_off"}
+    - warmup_runs: 0
+    - method: 'PATCH'
+    - headers: {'Content-Type': 'application/json'}
     - body: '{}'
-    - expected_status: [200]
-    - validators:
-        - compare: {jsonpath_mini: "pin.state", comparator: "eq", expected: 1}
+    - 'benchmark_runs': '2'
+    - output_format: csv
+    - metrics:
+        - total_time: total
+        - total_time: mean
 
-- test: # switch pin 1 ON with PATCH
-    - name: "Turn pin 2 on"
-    - url: "/pins/2/switch_on"
-    - method: "PATCH"
+- benchmark: # Turn all Pins Off
+    - generator_binds: {pin_id_on: id_on}
+    - name: "Turn all pins OFF"
+    - url: {template: "/pins/$pin_id_on/switch_on"}
+    - warmup_runs: 0
+    - method: 'PATCH'
+    - headers: {'Content-Type': 'application/json'}
     - body: '{}'
-    - expected_status: [200]
-    - validators:
-        - compare: {jsonpath_mini: "pin.state", comparator: "eq", expected: 1}
+    - 'benchmark_runs': '2'
+    - output_format: csv
+    - metrics:
+        - total_time: total
+        - total_time: mean
