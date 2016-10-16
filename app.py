@@ -14,9 +14,9 @@ app = Flask(__name__)
 api = Api()
 
 # GPIO Pin states
-PIN_HIGH_STATE = gpio.GPIO.HIGH
-PIN_LOW_STATE = gpio.GPIO.LOW
-VALID_PIN_STATE = [PIN_HIGH_STATE, PIN_LOW_STATE]
+PIN_STATE_HIGH = gpio.GPIO_HIGH
+PIN_STATE_LOW = gpio.GPIO_LOW
+VALID_PIN_STATE = [PIN_STATE_HIGH, PIN_STATE_LOW]
 
 # Default pins value
 pins = [
@@ -48,7 +48,6 @@ def pin_switch_off(pin):
 #
 #   Initialisation functions
 #
-
 # Load pins from a file into global variable pins
 def load_pins(file):
     global pins
@@ -62,9 +61,9 @@ def set_pins():
     for pin in pins:
         app.logger.debug(pin)
         app.logger.debug(pin)
-        if pin['state'] == PIN_HIGH_STATE:
+        if pin['state'] == PIN_STATE_HIGH:
             pin_switch_on(pin)
-        elif pin['state'] == PIN_LOW_STATE:
+        elif pin['state'] == PIN_STATE_LOW:
             pin_switch_off(pin)
 
 def setup_app():
@@ -94,9 +93,10 @@ class Pin(Resource):
         pin = abort_if_pin_does_not_exist(pin_id)
         if request.json.get('state') in VALID_PIN_STATE:
             pin[0]['state'] = request.json.get('state')
-            if pin[0]['state'] == PIN_HIGH_STATE:
+
+            if pin[0]['state'] == PIN_STATE_HIGH:
                 pin_switch_on(pin[0])
-            elif pin[0]['state'] == PIN_LOW_STATE:
+            elif pin[0]['state'] == PIN_STATE_LOW:
                 pin_switch_off(pin[0])
             return jsonify({'pin': pin[0]})
         else:
@@ -106,7 +106,7 @@ class PinSwitchOn(Resource):
     def patch(self, pin_id):
         pin = abort_if_pin_does_not_exist(pin_id)
 
-        pin[0]['state'] = PIN_HIGH_STATE
+        pin[0]['state'] = PIN_STATE_HIGH
         pin_switch_on(pin[0])
         return jsonify({'pin': pin[0]})
 
@@ -114,7 +114,7 @@ class PinSwitchOff(Resource):
     def patch(self, pin_id):
         pin = abort_if_pin_does_not_exist(pin_id)
 
-        pin[0]['state'] = PIN_LOW_STATE
+        pin[0]['state'] = PIN_STATE_LOW
         pin_switch_off(pin[0])
         return jsonify({'pin': pin[0]})
 

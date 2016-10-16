@@ -1,4 +1,8 @@
-import RPi.GPIO as GPIO
+import RPi.GPIO
+
+# Handy wrapper
+GPIO_HIGH = RPi.GPIO.HIGH
+GPIO_LOW = RPi.GPIO.LOW
 
 # Physical Pi GPIOs pins we want to use
 GPIO_PIN_1 = 37
@@ -9,14 +13,14 @@ GPIO_PIN_2 = 35
 #
 
 def pi_switch_on(pi_gpio_id):
-    GPIO.output(pi_gpio_id, GPIO.HIGH)
+    RPi.GPIO.output(pi_gpio_id, RPi.GPIO.HIGH)
 
 def pi_switch_off(pi_gpio_id):
-    GPIO.output(pi_gpio_id, GPIO.LOW)
+    RPi.GPIO.output(pi_gpio_id, RPi.GPIO.LOW)
 
 # Set Raspberry Pi GPIOs
 def pi_setup_gpio():
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setwarnings(False)
-    GPIO.setup(GPIO_PIN_1, GPIO.OUT)
-    GPIO.setup(GPIO_PIN_2, GPIO.OUT)
+    RPi.GPIO.setmode(RPi.GPIO.BOARD)
+    RPi.GPIO.setwarnings(False)
+    RPi.GPIO.setup(GPIO_PIN_1, RPi.GPIO.OUT)
+    RPi.GPIO.setup(GPIO_PIN_2, RPi.GPIO.OUT)
