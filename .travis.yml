@@ -1,0 +1,13 @@
+language: python
+python:
+  - "3.4"
+# command to install dependencies
+before_install:
+ - chmod +x runServer.sh
+install:
+  - pip install -r requirements.txt
+  - ./runServer.sh &
+  - sleep 5
+# command to run tests
+script:
+  - pyresttest localhost:5000 tests/quick_suite.yaml
