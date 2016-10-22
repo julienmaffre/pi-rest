@@ -3,7 +3,7 @@ import logging
 import json
 
 import os.path
-from pi_gpio import gpio
+import gpio as gpio
 
 from enum import Enum
 from termcolor import colored
@@ -134,7 +134,7 @@ class PinsSave(Resource):
 class PinsLoad(Resource):
     def post(self):
         load_pins('pins.json')
-        gpio.pi_set_gpio(pins)
+        set_pins()
         return jsonify({'pins': pins})
 
 class Hello(Resource):
