@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import logging
 import json
-import RPi.GPIO as GPIO
+
 import os.path
+from pi_gpio import gpio
 
 from enum import Enum
 from termcolor import colored
@@ -12,9 +13,10 @@ from flask_restful import Resource, Api, abort
 app = Flask(__name__)
 api = Api()
 
-# Physical Pi GPIOs pins we want to use
-GPIO_PIN_1 = 37
-GPIO_PIN_2 = 35
+# GPIO Pin states
+PIN_STATE_HIGH = gpio.GPIO_HIGH
+PIN_STATE_LOW = gpio.GPIO_LOW
+VALID_PIN_STATE = [PIN_STATE_HIGH, PIN_STATE_LOW]
 
 # Default pins value
 pins = [
@@ -22,44 +24,30 @@ pins = [
         'id': 1,
         'title': 'Red LED',
         'state': 0,
-        'pi_map': GPIO_PIN_1,
+        'pi_map': gpio.GPIO_PIN_1,
     },
     {
         'id': 2,
         'title': 'Green LED',
         'state': 1,
-        'pi_map': GPIO_PIN_2,
+        'pi_map': gpio.GPIO_PIN_2,
     }
 ]
 
 #
-#   Pi Specific functions (to be moved to another file later on)
+# GPIO related functions
 #
+def pin_switch_on(pin):
+    gpio.pi_switch_on(pin['pi_map'])
+    app.logger.debug(colored('Pin %d has been switched on!', 'green'), pin['id'])
 
-# GPIO Pin states
-PIN_HIGH_STATE = GPIO.HIGH
-PIN_LOW_STATE = GPIO.LOW
-VALID_PIN_STATE = [PIN_HIGH_STATE, PIN_LOW_STATE]
-
-def pi_switch_on(pi_gpio_id):
-    app.logger.debug(colored('Pin %d has been switched on!', 'green'), pi_gpio_id)
-    GPIO.output(pi_gpio_id, GPIO.HIGH)
-
-def pi_switch_off(pi_gpio_id):
-    app.logger.debug(colored('Pin %d has been switched off!', 'red'), pi_gpio_id)
-    GPIO.output(pi_gpio_id, GPIO.LOW)
+def pin_switch_off(pin):
+    gpio.pi_switch_off(pin['pi_map'])
+    app.logger.debug(colored('Pin %d has been switched off!', 'red'), pin['id'])
 
 #
 #   Initialisation functions
 #
-
-# Set Raspberry Pi GPIOs
-def pi_setup_gpio():
-    GPIO.setmode(GPIO.BOARD)
-    GPIO.setwarnings(False)
-    GPIO.setup(GPIO_PIN_1, GPIO.OUT)
-    GPIO.setup(GPIO_PIN_2, GPIO.OUT)
-
 # Load pins from a file into global variable pins
 def load_pins(file):
     global pins
@@ -69,17 +57,19 @@ def load_pins(file):
             pins = json.load(f)
 
 # Set pins according to a set of pins
-def pi_set_gpio(set_pins):
+def set_pins():
     for pin in pins:
-        if pin['state'] == PIN_HIGH_STATE:
-            pi_switch_on(pin['pi_map'])
-        elif pin['state'] == PIN_LOW_STATE:
-            pi_switch_off(pin['pi_map'])
+        app.logger.debug(pin)
+        app.logger.debug(pin)
+        if pin['state'] == PIN_STATE_HIGH:
+            pin_switch_on(pin)
+        elif pin['state'] == PIN_STATE_LOW:
+            pin_switch_off(pin)
 
 def setup_app():
-    pi_setup_gpio()
+    gpio.pi_setup_gpio()
     load_pins('pins.json')
-    pi_set_gpio(pins)
+    set_pins()
 
 #
 #   RESTful API functions
@@ -87,7 +77,6 @@ def setup_app():
 
 def abort_if_pin_does_not_exist(pin_id):
     pin = [pin for pin in pins if pin['id'] == pin_id]
-    app.logger.debug(pin)
     if len(pin) == 0:
         abort(404, message="Pin {} does not exist!".format(pin_id))
     else:
@@ -104,10 +93,11 @@ class Pin(Resource):
         pin = abort_if_pin_does_not_exist(pin_id)
         if request.json.get('state') in VALID_PIN_STATE:
             pin[0]['state'] = request.json.get('state')
-            if pin[0]['state'] == PIN_HIGH_STATE:
-                pi_switch_on(pin[0]['pi_map'])
-            elif pin[0]['state'] == PIN_LOW_STATE:
-                pi_switch_off(pin[0]['pi_map'])
+
+            if pin[0]['state'] == PIN_STATE_HIGH:
+                pin_switch_on(pin[0])
+            elif pin[0]['state'] == PIN_STATE_LOW:
+                pin_switch_off(pin[0])
             return jsonify({'pin': pin[0]})
         else:
             abort(400)
@@ -116,16 +106,16 @@ class PinSwitchOn(Resource):
     def patch(self, pin_id):
         pin = abort_if_pin_does_not_exist(pin_id)
 
-        pin[0]['state'] = PIN_HIGH_STATE
-        pi_switch_on(pin[0]['pi_map'])
+        pin[0]['state'] = PIN_STATE_HIGH
+        pin_switch_on(pin[0])
         return jsonify({'pin': pin[0]})
 
 class PinSwitchOff(Resource):
     def patch(self, pin_id):
         pin = abort_if_pin_does_not_exist(pin_id)
 
-        pin[0]['state'] = PIN_LOW_STATE
-        pi_switch_off(pin[0]['pi_map'])
+        pin[0]['state'] = PIN_STATE_LOW
+        pin_switch_off(pin[0])
         return jsonify({'pin': pin[0]})
 
 #
@@ -144,7 +134,7 @@ class PinsSave(Resource):
 class PinsLoad(Resource):
     def post(self):
         load_pins('pins.json')
-        pi_set_gpio(pins)
+        gpio.pi_set_gpio(pins)
         return jsonify({'pins': pins})
 
 class Hello(Resource):
