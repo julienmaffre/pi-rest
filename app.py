@@ -102,22 +102,6 @@ class Pin(Resource):
         else:
             abort(400)
 
-class PinSwitchOn(Resource):
-    def patch(self, pin_id):
-        pin = abort_if_pin_does_not_exist(pin_id)
-
-        pin[0]['state'] = PIN_STATE_HIGH
-        pin_switch_on(pin[0])
-        return jsonify({'pin': pin[0]})
-
-class PinSwitchOff(Resource):
-    def patch(self, pin_id):
-        pin = abort_if_pin_does_not_exist(pin_id)
-
-        pin[0]['state'] = PIN_STATE_LOW
-        pin_switch_off(pin[0])
-        return jsonify({'pin': pin[0]})
-
 #
 #   Pins Resource - set of methods to read, save and load the entire set of pins
 #
@@ -157,8 +141,6 @@ def bad_request(error):
 #
 api.add_resource(Hello, '/')
 api.add_resource(Pin, '/pins/<int:pin_id>')
-api.add_resource(PinSwitchOn, '/pins/<int:pin_id>/switch_on')
-api.add_resource(PinSwitchOff, '/pins/<int:pin_id>/switch_off')
 
 api.add_resource(Pins, '/pins')
 api.add_resource(PinsSave, '/pins/save')
