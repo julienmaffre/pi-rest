@@ -1,40 +1,40 @@
 ---
 - config:
     - testset: "Demonstrate use of setting all pins to on and off"
-    - generators:
-        # Generator pins id that counts up from 1 to 2
-        - 'id_off': {type: 'number_sequence', start: 1}
-        - 'id_on': {type: 'number_sequence', start: 1}
 
+# Note: Can't use generators because they don't return any error code!
 
-# - test:
-#     - name: "Test Get"
-#     - url: "/pins"
-
-- benchmark: # Turn all Pins Off
-    - generator_binds: {pin_id_off: id_off}
-    - name: "Turn all pins OFF"
-    - url: {template: "/pins/$pin_id_off/switch_off"}
-    - warmup_runs: 0
-    - method: 'PATCH'
+- test: # GET to init the app
+    - name: "Simple GET to init the API"
+    - url: "/pins"
+    - method: 'GET'
     - headers: {'Content-Type': 'application/json'}
     - body: '{}'
-    - 'benchmark_runs': '2'
-    - output_format: csv
-    - metrics:
-        - total_time: total
-        - total_time: mean
 
-- benchmark: # Turn all Pins Off
-    - generator_binds: {pin_id_on: id_on}
-    - name: "Turn all pins OFF"
-    - url: {template: "/pins/$pin_id_on/switch_on"}
-    - warmup_runs: 0
+- test: # Turn Pin 1 ON
+    - name: "Turn all pins ON"
+    - url: "/pins/1"
     - method: 'PATCH'
     - headers: {'Content-Type': 'application/json'}
-    - body: '{}'
-    - 'benchmark_runs': '2'
-    - output_format: csv
-    - metrics:
-        - total_time: total
-        - total_time: mean
+    - body: '{"state": 1}'
+
+- test: # Turn Pin 1 OFF
+    - name: "Turn all pins OFF"
+    - url: "/pins/1"
+    - method: 'PATCH'
+    - headers: {'Content-Type': 'application/json'}
+    - body: '{"state": 0}'
+
+- test: # Turn Pin 2 ON
+    - name: "Turn all pins ON"
+    - url: "/pins/2"
+    - method: 'PATCH'
+    - headers: {'Content-Type': 'application/json'}
+    - body: '{"state": 1}'
+
+- test: # Turn Pin 2 OFF
+    - name: "Turn all pins OFF"
+    - url: "/pins/2"
+    - method: 'PATCH'
+    - headers: {'Content-Type': 'application/json'}
+    - body: '{"state": 0}'
